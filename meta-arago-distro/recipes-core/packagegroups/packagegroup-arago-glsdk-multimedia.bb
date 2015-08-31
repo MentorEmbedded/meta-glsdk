@@ -10,6 +10,7 @@ ARAGO_GLSDK_MULTIMEDIA = "\
     libdce \
     libav \
     libavformat \
+    libxml2 \
     omapdrmtest \
     ti-ipc \
     omapconf \
@@ -53,6 +54,7 @@ ARAGO_GLSDK_DEV = "\
     libgbm-dev \
     libdce-dev \
     libav-dev \
+    libxml2-dev \
     ti-ipc-dev \
     libavcodec-dev \
     libavutil-dev \
