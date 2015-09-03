@@ -2,8 +2,12 @@ DESCRIPTION = "Imagination PowerVR SDK binaries for Jacinto6 SoC"
 LICENSE = "TI-TSPA"
 LIC_FILES_CHKSUM = "file://Jacinto6-IMG-PowerVR-SDK-Manifest.pdf;md5=46bcbfc69f8837c339e15fd4a5044a8c"
 
-SRC_URI = "git://git.ti.com/graphics/img-pvr-sdk.git;protocol=git"
-SRCREV = "c2456ec3f03da022fb7489d6b381a4ac26a68203"
+SRC_URI = "git://git.ti.com/graphics/img-pvr-sdk.git;protocol=git \
+          "
+
+SRCREV = "2be0da6fdbad3dcaad97e1e58cb252b2487ca942"
+
+FILESEXTRAPATHS_prepend := "${THISDIR}/patches:"
 
 PR = "r4"
 
