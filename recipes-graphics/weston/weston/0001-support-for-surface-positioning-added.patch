@@ -1,0 +1,142 @@
+From b5190ade4f7e3be95b5efa4ba42dd13b9d6ddfcd Mon Sep 17 00:00:00 2001
+From: Subhajit Paul <a0132170@ti.com>
+Date: Wed, 15 Jul 2015 14:43:20 +0530
+Subject: [PATCH] support for surface positioning added
+
+Signed-off-by: Subhajit Paul <a0132170@ti.com>
+---
+ desktop-shell/shell.c |   65 +++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 60 insertions(+), 5 deletions(-)
+
+diff --git a/desktop-shell/shell.c b/desktop-shell/shell.c
+index 3a5a702..3d60f6a 100644
+--- a/desktop-shell/shell.c
++++ b/desktop-shell/shell.c
+@@ -2207,11 +2207,26 @@ shell_surface_pong(struct wl_client *client,
+ 	shell_client_pong(sc, serial);
+ }
+ 
++static bool
++weston_view_set_position_from_title(struct weston_view *view,
++				 struct desktop_shell *shell,
++				 char *title);
++
+ static void
+ set_title(struct shell_surface *shsurf, const char *title)
+ {
+ 	free(shsurf->title);
+ 	shsurf->title = strdup(title);
++	/*
++	 * This is catering to a RFC (from Infoadas) for positioning a
++	 * wl_shell_surface.
++	 *
++	 * Because wayland doesn't support it, this is a workaround to
++	 * pass the request to weston
++	 *
++	 */
++	if(weston_view_is_mapped(shsurf->view))
++		weston_view_set_position_from_title(shsurf->view, shsurf->shell, shsurf->title);
+ }
+ 
+ static void
+@@ -2485,6 +2500,8 @@ weston_view_set_initial_position(struct weston_view *view,
+ static void
+ unset_fullscreen(struct shell_surface *shsurf)
+ {
++	bool title_pos;
++
+ 	/* Unset the fullscreen output, driver configuration and transforms. */
+ 	if (shsurf->fullscreen.type == WL_SHELL_SURFACE_FULLSCREEN_METHOD_DRIVER &&
+ 	    shell_surface_is_top_fullscreen(shsurf)) {
+@@ -2504,8 +2521,12 @@ unset_fullscreen(struct shell_surface *shsurf)
+ 	if (shsurf->saved_position_valid)
+ 		weston_view_set_position(shsurf->view,
+ 					 shsurf->saved_x, shsurf->saved_y);
+-	else
+-		weston_view_set_initial_position(shsurf->view, shsurf->shell);
++	else {
++		title_pos = weston_view_set_position_from_title(shsurf->view, shsurf->shell, shsurf->title);
++		if(!title_pos) {
++			weston_view_set_initial_position(shsurf->view, shsurf->shell);
++		}
++	}
+ 
+ 	if (shsurf->saved_rotation_valid) {
+ 		wl_list_insert(&shsurf->view->geometry.transformation_list,
+@@ -2581,14 +2602,20 @@ shell_surface_set_popup(struct wl_client *client,
+ static void
+ unset_maximized(struct shell_surface *shsurf)
+ {
++	bool title_pos;
++
+ 	/* undo all maximized things here */
+ 	shsurf->output = get_default_output(shsurf->surface->compositor);
+ 
+ 	if (shsurf->saved_position_valid)
+ 		weston_view_set_position(shsurf->view,
+ 					 shsurf->saved_x, shsurf->saved_y);
+-	else
+-		weston_view_set_initial_position(shsurf->view, shsurf->shell);
++	else {
++		title_pos = weston_view_set_position_from_title(shsurf->view, shsurf->shell, shsurf->title);
++		if(!title_pos) {
++			weston_view_set_initial_position(shsurf->view, shsurf->shell);
++		}
++	}
+ 
+ 	if (shsurf->saved_rotation_valid) {
+ 		wl_list_insert(&shsurf->view->geometry.transformation_list,
+@@ -5224,6 +5251,30 @@ center_on_output(struct weston_view *view, struct weston_output *output)
+ 	weston_view_set_position(view, x, y);
+ }
+ 
++static bool
++weston_view_set_position_from_title(struct weston_view *view,
++				 struct desktop_shell *shell,
++				 char *title)
++{
++	int posx, posy;
++	int num_scans;
++	char *posreq;
++
++	if(!title)
++		return false;
++	posreq = strstr(title, "[@position-req=");
++	if(posreq == NULL)
++		return false;
++	num_scans = sscanf(posreq, "[@position-req=%dx%d]", &posx, &posy);
++	if(num_scans != 2) {
++		printf("%d scans !!!!\n", num_scans);
++		return false;
++	}
++
++	weston_view_set_position(view, posx, posy);
++	return true;
++}
++
+ static void
+ weston_view_set_initial_position(struct weston_view *view,
+ 				 struct desktop_shell *shell)
+@@ -5307,6 +5358,7 @@ static void
+ map(struct desktop_shell *shell, struct shell_surface *shsurf,
+     int32_t sx, int32_t sy)
+ {
++	bool title_pos;
+ 	struct weston_compositor *compositor = shell->compositor;
+ 	struct weston_seat *seat;
+ 
+@@ -5319,7 +5371,10 @@ map(struct desktop_shell *shell, struct shell_surface *shsurf,
+ 		} else if (shsurf->state.maximized) {
+ 			set_maximized_position(shell, shsurf);
+ 		} else if (!shsurf->state.relative) {
+-			weston_view_set_initial_position(shsurf->view, shell);
++			title_pos = weston_view_set_position_from_title(shsurf->view, shell, shsurf->title);
++			if(!title_pos) {
++				weston_view_set_initial_position(shsurf->view, shell);
++			}
+ 		}
+ 		break;
+ 	case SHELL_SURFACE_POPUP:
+-- 
+1.7.9.5
+
